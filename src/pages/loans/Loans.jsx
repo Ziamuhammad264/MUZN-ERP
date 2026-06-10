@@ -5,6 +5,7 @@ import { FormField } from '../../components/ui/FormField';
 import { DatePicker } from '../../components/ui/date-picker';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ModalPortal } from '../../components/ui/ModalPortal';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { LOAN_STATUS, LOAN_PAYMENT_METHODS, labelOf } from '../../constants/options';
 import { loansApi, employeesApi } from '../../api/services';
@@ -537,7 +538,8 @@ export const Loans = () => {
 
       {/* Create Loan Modal Dialog */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-xl max-w-md w-full shadow-2xl overflow-hidden animate-fade-in text-left">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-700">
               <h3 className="text-base font-bold text-slate-850 dark:text-slate-100 flex items-center gap-2">
@@ -645,11 +647,13 @@ export const Loans = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Record Payment Modal */}
       {isPaymentOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-xl max-w-md w-full shadow-2xl overflow-hidden animate-fade-in text-left">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-700">
               <h3 className="text-base font-bold text-slate-850 dark:text-slate-100 flex items-center gap-2">
@@ -743,11 +747,13 @@ export const Loans = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Edit Loan Modal */}
       {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-xl max-w-md w-full shadow-2xl overflow-hidden animate-fade-in text-left">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-700">
               <h3 className="text-base font-bold text-slate-850 dark:text-slate-100 flex items-center gap-2">
@@ -819,6 +825,7 @@ export const Loans = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

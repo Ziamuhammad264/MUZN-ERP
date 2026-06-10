@@ -12,7 +12,8 @@ import { assignmentsApi, employeesApi, motorbikesApi } from '../../api/services'
 import { toast, confirmDialog } from '../../utils/notify';
 import { apiMessage } from '../../api/axios';
 import { v, validateForm, cleanPayload, mapApiErrors } from '../../utils/validation';
-import { ASSIGNMENT_STATUS, labelOf } from '../../constants/options';
+import { ASSIGNMENT_STATUS, BIKE_CONDITION, labelOf } from '../../constants/options';
+import { ModalPortal } from '../../components/ui/ModalPortal';
 
 export const Assignments = () => {
   // --- Data fetching --------------------------------------------------------
@@ -269,14 +270,17 @@ export const Assignments = () => {
                 />
               </FormField>
 
-              <FormField label="Handover Condition" required>
-                <input
-                  type="text"
+              <FormField label="Handover Condition">
+                <select
                   className="w-full text-xs px-3 py-2 border border-slate-205 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-light text-slate-800 dark:text-slate-100"
-                  placeholder="e.g. Good condition, no damage"
                   value={handoverCondition}
                   onChange={(e) => setHandoverCondition(e.target.value)}
-                />
+                >
+                  <option value="">Select condition…</option>
+                  {BIKE_CONDITION.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
               </FormField>
 
               <button
@@ -424,7 +428,8 @@ export const Assignments = () => {
 
       {/* Return Bike Modal Popup */}
       {isReturnModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl max-w-md w-full shadow-2xl overflow-hidden animate-fade-in text-left">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-700">
               <h3 className="text-base font-bold text-slate-850 dark:text-slate-100 flex items-center gap-2">
@@ -443,17 +448,16 @@ export const Assignments = () => {
                   />
                 </FormField>
 
-                <FormField label="Vehicle Condition on Return" required>
+                <FormField label="Vehicle Condition on Return">
                   <select
                     className="w-full text-xs px-3 py-2 border border-slate-205 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg focus:outline-none text-slate-800 dark:text-slate-100"
                     value={returnCondition}
                     onChange={(e) => setReturnCondition(e.target.value)}
                   >
                     <option value="">Select condition…</option>
-                    <option value="Excellent - Cleaned">Excellent - Cleaned</option>
-                    <option value="Good - Normal Wear">Good - Normal Wear</option>
-                    <option value="Damaged - Repair Required">Damaged - Repair Required</option>
-                    <option value="Critical - Accidental Damage">Critical - Accidental Damage</option>
+                    {BIKE_CONDITION.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </FormField>
 
@@ -488,6 +492,7 @@ export const Assignments = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>

@@ -8,6 +8,7 @@ import { FormField } from '../../components/ui/FormField';
 import { DatePicker } from '../../components/ui/date-picker';
 import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ModalPortal } from '../../components/ui/ModalPortal';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { toast, confirmDialog } from '../../utils/notify';
 import { v, validateForm, cleanPayload, mapApiErrors } from '../../utils/validation';
@@ -488,7 +489,8 @@ export const Expenses = () => {
 
       {/* Log / Edit Expense Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-xl max-w-2xl w-full shadow-2xl overflow-hidden animate-fade-in text-left my-8">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-700">
               <h3 className="text-base font-bold text-slate-850 dark:text-slate-100 flex items-center gap-2">
@@ -599,6 +601,7 @@ export const Expenses = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>

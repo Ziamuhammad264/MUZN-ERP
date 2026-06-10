@@ -208,7 +208,11 @@ h1, h2, h3, h4, h5, h6 {
    ───────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  /* End at `none` (not translateY(0)) so the element keeps no transform after the
+     animation — a lingering transform would make it the containing block /
+     stacking context for any `position: fixed` modal rendered inside it,
+     trapping the modal in the content area instead of covering the viewport. */
+  to   { opacity: 1; transform: none; }
 }
 
 .animate-fade-in {
@@ -217,7 +221,7 @@ h1, h2, h3, h4, h5, h6 {
 
 @keyframes slideInRight {
   from { opacity: 0; transform: translateX(20px); }
-  to   { opacity: 1; transform: translateX(0); }
+  to   { opacity: 1; transform: none; }
 }
 
 .animate-slide-in {

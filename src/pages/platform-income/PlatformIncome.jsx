@@ -24,6 +24,7 @@ import { INCOME_SOURCE_TYPE, PLATFORMS, labelOf } from '../../constants/options'
 import { toast, confirmDialog } from '../../utils/notify';
 import { apiMessage } from '../../api/axios';
 import { v, validateForm, cleanPayload, mapApiErrors } from '../../utils/validation';
+import { ModalPortal } from '../../components/ui/ModalPortal';
 
 const MONTHS = [
   { value: 1, label: 'January' },
@@ -505,7 +506,8 @@ export const PlatformIncome = () => {
 
       {/* Log Income Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-xl max-w-xl w-full shadow-2xl overflow-hidden animate-fade-in text-left my-8">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-700">
               <h3 className="text-base font-bold text-slate-850 dark:text-slate-100 flex items-center gap-2">
@@ -634,6 +636,7 @@ export const PlatformIncome = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>

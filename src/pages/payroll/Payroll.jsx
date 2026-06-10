@@ -25,6 +25,7 @@ import {
   Loader2
 } from 'lucide-react';
 import dayjs from 'dayjs';
+import { ModalPortal } from '../../components/ui/ModalPortal';
 
 const MONTHS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
 const YEARS = ['2024', '2025', '2026', '2027'];
@@ -33,6 +34,7 @@ const emptyForm = () => ({
   employee_id: '',
   month: '',
   year: '',
+  gross_salary: '',
   attendance_days: '',
   hours_compliance: false,
   salik_deduction: '',
@@ -111,10 +113,12 @@ export const Payroll = () => {
   // ----- KPI cards ---------------------------------------------------------
   const kpis = useMemo(
     () => [
-      { title: 'Total Payrolls', icon: ClipboardCheck, value: stats?.total_payrolls ?? 0 },
-      { title: 'Draft', icon: Pencil, value: stats?.draft ?? 0 },
-      { title: 'Approved', icon: CheckCircle2, value: stats?.approved ?? 0 },
-      { title: 'Rejected', icon: XCircle, value: stats?.rejected ?? 0 },
+      {
+        title: 'Total Payrolls',
+        icon: ClipboardCheck,
+        value: stats?.total_payrolls ?? 0,
+        badge: `${stats?.draft ?? 0} draft`
+      },
       { title: 'Gross Payroll', icon: Coins, value: formatCurrency(stats?.total_gross ?? 0) },
       { title: 'Total Deductions', icon: TrendingDown, value: formatCurrency(stats?.total_deductions ?? 0) },
       { title: 'Net Payout', icon: Wallet, value: formatCurrency(stats?.total_net ?? 0) }
@@ -136,6 +140,7 @@ export const Payroll = () => {
       employee_id: row.employee_id ?? '',
       month: row.month != null ? String(row.month).padStart(2, '0') : '',
       year: row.year != null ? String(row.year) : '',
+      gross_salary: row.gross_salary ?? '',
       attendance_days: row.attendance_days ?? '',
       hours_compliance: row.hours_compliance ?? true,
       salik_deduction: row.salik_deduction ?? '',
@@ -152,6 +157,7 @@ export const Payroll = () => {
       employee_id: [v.required('Employee')],
       month: [v.required('Month')],
       year: [v.required('Year')],
+      gross_salary: [v.required('Gross salary'), v.positive('Gross salary')],
       attendance_days: [v.number('Attendance days'), v.min(0, 'Attendance days'), v.max(31, 'Attendance days')],
       salik_deduction: [v.number('Salik deduction'), v.min(0, 'Salik deduction')],
       penalty_deduction: [v.number('Penalty deduction'), v.min(0, 'Penalty deduction')],
@@ -169,10 +175,18 @@ export const Payroll = () => {
 
     setSaving(true);
     const payload = cleanPayload(
-      { ...form, hours_compliance: !!form.hours_compliance },
+      // hours_compliance must be an integer (0/1), not a boolean.
+      { ...form, hours_compliance: form.hours_compliance ? 1 : 0 },
       {
-        numbers: ['month', 'year', 'attendance_days', 'salik_deduction', 'penalty_deduction', 'other_deduction'],
-        booleans: ['hours_compliance']
+        numbers: [
+          'month',
+          'year',
+          'gross_salary',
+          'attendance_days',
+          'salik_deduction',
+          'penalty_deduction',
+          'other_deduction'
+        ]
       }
     );
     try {
@@ -269,22 +283,48 @@ export const Payroll = () => {
     }
   };
 
+  // Resolve an employee's name/ref from the payroll row, falling back to the
+  // fetched employee list (the row often only carries employee_id).
+  const employeeById = useMemo(() => {
+    const map = {};
+    employees.forEach((e) => {
+      map[e.id] = e;
+    });
+    return map;
+  }, [employees]);
+
+  const employeeOf = (row) => {
+    const emp = row.employee || employeeById[row.employee_id] || {};
+    return {
+      name: row.employee_name || emp.name || '—',
+      ref: row.employee_ref || emp.employee_id || (row.employee_id ? `#${row.employee_id}` : '')
+    };
+  };
+
   // ----- Table columns -----------------------------------------------------
   const columns = [
     {
       header: 'Employee',
       accessor: 'employee_name',
       sortable: true,
-      render: (val, row) => (
-        <div>
-          <span className="font-semibold text-slate-800 dark:text-slate-100">{val || '—'}</span>
-          {row.attendance_days != null && (
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-semibold">
-              {row.attendance_days} day(s) attendance
-            </span>
-          )}
-        </div>
-      )
+      render: (val, row) => {
+        const { name, ref } = employeeOf(row);
+        return (
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-full flex items-center justify-center bg-brand-light/10 dark:bg-brand-dark/10 text-brand-light dark:text-brand-dark text-xs font-bold flex-shrink-0">
+              {name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <span className="font-semibold text-slate-800 dark:text-slate-100 block truncate">{name}</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-semibold">
+                {[ref, row.attendance_days != null ? `${row.attendance_days} days` : null]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </div>
+          </div>
+        );
+      }
     },
     {
       header: 'Gross Salary',
@@ -328,31 +368,33 @@ export const Payroll = () => {
         const isApproved = row.payroll_status === 'approved';
         const isPaid = row.payment_status === 'paid';
         const busy = busyId === row.id;
+        const actionBtn =
+          'flex items-center justify-center h-7 w-7 rounded-lg border transition-colors disabled:opacity-30 disabled:cursor-not-allowed';
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => openEdit(row)}
               disabled={!isDraft || busy}
               title={isDraft ? 'Edit payroll' : 'Only draft records can be edited'}
-              className="text-slate-500 hover:text-brand-light disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${actionBtn} border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-brand-light/10 hover:text-brand-light hover:border-brand-light/30`}
             >
-              <Pencil size={15} />
+              <Pencil size={14} />
             </button>
             <button
               onClick={() => handleApprove(row)}
               disabled={!isDraft || busy}
               title={isDraft ? 'Approve payroll' : 'Only draft records can be approved'}
-              className="text-slate-500 hover:text-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${actionBtn} border-emerald-200 dark:border-emerald-900/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30`}
             >
-              <CheckCircle2 size={15} />
+              <CheckCircle2 size={14} />
             </button>
             <button
               onClick={() => handleReject(row)}
               disabled={!isDraft || busy}
               title={isDraft ? 'Reject payroll' : 'Only draft records can be rejected'}
-              className="text-slate-500 hover:text-rose-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${actionBtn} border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30`}
             >
-              <XCircle size={15} />
+              <XCircle size={14} />
             </button>
             <button
               onClick={() => handleMarkPaid(row)}
@@ -364,17 +406,17 @@ export const Payroll = () => {
                     ? 'Mark as paid'
                     : 'Only approved records can be marked paid'
               }
-              className="text-slate-500 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${actionBtn} border-blue-200 dark:border-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30`}
             >
-              <BadgeDollarSign size={15} />
+              <BadgeDollarSign size={14} />
             </button>
             <button
               onClick={() => handleDownloadSlip(row)}
               disabled={busy}
               title="Download salary slip (PDF)"
-              className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${actionBtn} border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100`}
             >
-              {busy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
             </button>
           </div>
         );
@@ -423,15 +465,10 @@ export const Payroll = () => {
       />
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {kpis.map((kpi) => (
-          <KPICard key={kpi.title} title={kpi.title} icon={kpi.icon} value={kpi.value} />
+          <KPICard key={kpi.title} title={kpi.title} icon={kpi.icon} value={kpi.value} badge={kpi.badge} />
         ))}
-      </div>
-
-      {/* Formula notice banner */}
-      <div className="p-2.5 sm:p-3 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-lg text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-mono text-left overflow-x-auto custom-scrollbar">
-        Net Salary = Gross Salary − Loan Deduction − Fine Deduction − Salik − Penalty − Other Deductions (computed server-side on creation)
       </div>
 
       {/* Filters + table */}
@@ -508,7 +545,8 @@ export const Payroll = () => {
 
       {/* Create / Edit Payroll Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden animate-fade-in text-left my-8">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-700">
               <h3 className="text-base font-bold text-slate-850 dark:text-slate-100 flex items-center gap-2">
@@ -576,6 +614,18 @@ export const Payroll = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField label="Gross Salary (AED)" error={errors.gross_salary} required>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="w-full text-xs px-3 py-2 border border-slate-205 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-light text-slate-850 dark:text-slate-105"
+                      placeholder="e.g. 2500.00"
+                      value={form.gross_salary}
+                      onChange={(e) => setField('gross_salary')(e.target.value)}
+                    />
+                  </FormField>
+
                   <FormField label="Attendance Days" error={errors.attendance_days}>
                     <input
                       type="number"
@@ -670,6 +720,7 @@ export const Payroll = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

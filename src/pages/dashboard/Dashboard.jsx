@@ -1,11 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
-import { dashboardApi } from '../../api/services';
+import {
+  dashboardApi,
+  employeesApi,
+  motorbikesApi,
+  assignmentsApi,
+  profitLossApi,
+  platformIncomeApi,
+  expensesApi
+} from '../../api/services';
 import { toast } from '../../utils/notify.jsx';
 import { apiMessage } from '../../api/axios';
 import { KPICard } from '../../components/ui/KPICard';
 import { DocumentExpiryBadge } from '../../components/ui/DocumentExpiryBadge';
 import { formatCurrency } from '../../utils/formatters';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend
+} from 'recharts';
+import dayjs from 'dayjs';
 import {
   Users,
   Bike,
@@ -20,6 +43,29 @@ import {
   BookOpen
 } from 'lucide-react';
 
+const PIE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#14B8A6'];
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Normalize the monthly-trend payload (array or {data:[...]}) into chart rows.
+const normalizeTrend = (payload) => {
+  const rows = Array.isArray(payload) ? payload : payload?.data || [];
+  return rows.map((r, i) => {
+    const income = Number(r.income ?? r.total_income ?? r.revenue ?? 0);
+    const expenses = Number(r.expenses ?? r.total_expenses ?? 0);
+    const profit = Number(r.profit ?? r.net_profit ?? income - expenses);
+    const m = r.month_name || r.month || MONTH_LABELS[i] || i + 1;
+    const label = typeof m === 'number' ? MONTH_LABELS[m - 1] || m : m;
+    return { month: label, Revenue: income, Expenses: expenses, Profit: profit };
+  });
+};
+
+// Turn a { key: amount } map into [{ name, value }] sorted desc, dropping zeros.
+const mapToSeries = (obj, valueKey = 'value') =>
+  Object.entries(obj || {})
+    .map(([name, v]) => ({ name, [valueKey]: Number(v) || 0 }))
+    .filter((d) => d[valueKey] > 0)
+    .sort((a, b) => b[valueKey] - a[valueKey]);
+
 // Pick the first defined value from a list of candidate keys on an object.
 const pick = (obj, ...keys) => {
   for (const k of keys) {
@@ -33,34 +79,92 @@ export const Dashboard = () => {
 
   const [overview, setOverview] = useState(null);
   const [alerts, setAlerts] = useState(null);
+  const [empStats, setEmpStats] = useState(null);
+  const [bikeStats, setBikeStats] = useState(null);
+  const [assignStats, setAssignStats] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [trend, setTrend] = useState(null);
+  const [platformStats, setPlatformStats] = useState(null);
+  const [expenseStats, setExpenseStats] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const elevated = isElevated();
 
   useEffect(() => {
     let active = true;
+    const month = dayjs().month() + 1;
+    const year = dayjs().year();
+
     (async () => {
       setLoading(true);
-      try {
-        const [overviewData, alertsData] = await Promise.all([
-          dashboardApi.overview(),
-          dashboardApi.alerts()
-        ]);
-        if (!active) return;
-        setOverview(overviewData || {});
-        setAlerts(alertsData || {});
-      } catch (err) {
-        if (active) toast.error(apiMessage(err));
-      } finally {
-        if (active) setLoading(false);
+
+      // Operational data is composed from the per-module stats endpoints (these
+      // are the same ones the list pages use, so they're reliable) plus the
+      // dashboard overview/alerts as supplementary sources.
+      const [overviewData, alertsData, eStats, bStats, aStats] = await Promise.all([
+        dashboardApi.overview().catch(() => null),
+        dashboardApi.alerts().catch(() => null),
+        employeesApi.stats().catch(() => null),
+        motorbikesApi.stats().catch(() => null),
+        assignmentsApi.stats().catch(() => null)
+      ]);
+      if (!active) return;
+      setOverview(overviewData || {});
+      setAlerts(alertsData || {});
+      setEmpStats(eStats);
+      setBikeStats(bStats);
+      setAssignStats(aStats);
+      setLoading(false);
+
+      // Financial figures + analytics (owner/superadmin only — admins get 403).
+      if (elevated) {
+        profitLossApi.summary({ month, year }).then((d) => active && setSummary(d)).catch(() => {});
+        profitLossApi.monthlyTrend({ year }).then((d) => active && setTrend(d)).catch(() => {});
+        platformIncomeApi.stats({ month, year }).then((d) => active && setPlatformStats(d)).catch(() => {});
+        expensesApi.stats({ month, year }).then((d) => active && setExpenseStats(d)).catch(() => {});
       }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [elevated]);
 
-  const operational = overview?.operational || {};
-  const financial = overview?.financial; // undefined for admin role
-  const showFinancial = !!financial && isElevated();
+  // Operational KPIs — prefer the reliable per-module stats, fall back to the
+  // dashboard overview, then 0.
+  const ovOp = overview?.operational || {};
+  const operational = {
+    total_employees: empStats?.total ?? pick(ovOp, 'total_employees') ?? 0,
+    active_employees: empStats?.active ?? pick(ovOp, 'active_employees') ?? 0,
+    total_bikes: bikeStats?.total ?? pick(ovOp, 'total_bikes') ?? 0,
+    available_bikes: bikeStats?.available ?? pick(ovOp, 'available_bikes') ?? 0,
+    active_assignments:
+      pick(assignStats || {}, 'active', 'total_active', 'active_assignments') ??
+      pick(ovOp, 'active_assignments') ??
+      0
+  };
+
+  // Financial KPIs — overview.financial, else the P&L summary for this month.
+  const financial = overview?.financial
+    ? overview.financial
+    : summary
+    ? {
+        current_month_income: summary.income?.total_income ?? 0,
+        current_month_expenses: summary.expenses?.total_expenses ?? 0,
+        current_month_payroll: summary.expenses?.payroll ?? 0,
+        net_profit: summary.net_profit ?? 0
+      }
+    : null;
+  const showFinancial = !!financial && elevated;
+
+  const trendData = useMemo(() => normalizeTrend(trend), [trend]);
+  const emirateData = useMemo(() => mapToSeries(empStats?.by_emirate, 'count'), [empStats]);
+  const platformData = useMemo(() => mapToSeries(platformStats?.by_platform, 'amount'), [platformStats]);
+  const expenseData = useMemo(() => mapToSeries(expenseStats?.by_category, 'value'), [expenseStats]);
+
+  const currentYear = dayjs().year();
+  const tooltipStyle = { background: '#1E293B', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '11px' };
+  const hasAnalytics =
+    trendData.length > 0 || emirateData.length > 0 || platformData.length > 0 || expenseData.length > 0;
 
   // Flatten employee + bike document-expiry alerts into the action board.
   const expiryAlerts = useMemo(() => {
@@ -176,6 +280,87 @@ export const Dashboard = () => {
               trend="This Month"
               trendType={financial.net_profit >= 0 ? 'up' : 'down'}
             />
+          </div>
+        </>
+      )}
+
+      {/* Analytics charts (real data from stats endpoints) */}
+      {hasAnalytics && (
+        <>
+          <h2 className="text-[10px] sm:text-xs font-bold uppercase text-slate-400 dark:text-slate-500 tracking-wider mt-4 sm:mt-5 md:mt-6 mb-2 select-none">
+            Analytics
+          </h2>
+
+          {showFinancial && trendData.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-4 md:p-5 shadow-sm">
+              <h3 className="text-[10px] sm:text-xs font-bold uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-3 md:mb-4">
+                Revenue &amp; Profit Trend ({currentYear})
+              </h3>
+              <ResponsiveContainer width="100%" height={256}>
+                <LineChart data={trendData}>
+                  <XAxis dataKey="month" stroke="#888888" fontSize={9} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#888888" fontSize={9} tickLine={false} axisLine={false} />
+                  <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={tooltipStyle} />
+                  <Legend verticalAlign="bottom" height={30} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                  <Line type="monotone" dataKey="Revenue" stroke="#3B82F6" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="Expenses" stroke="#EF4444" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="Profit" stroke="#10B981" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6 mt-3 sm:mt-4 md:mt-6">
+            {emirateData.length > 0 && (
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-4 md:p-5 shadow-sm">
+                <h3 className="text-[10px] sm:text-xs font-bold uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-3 md:mb-4">
+                  Workforce by Emirate
+                </h3>
+                <ResponsiveContainer width="100%" height={256}>
+                  <BarChart data={emirateData}>
+                    <XAxis dataKey="name" stroke="#888888" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#888888" fontSize={9} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {showFinancial && platformData.length > 0 && (
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-4 md:p-5 shadow-sm">
+                <h3 className="text-[10px] sm:text-xs font-bold uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-3 md:mb-4">
+                  Revenue by Platform (This Month)
+                </h3>
+                <ResponsiveContainer width="100%" height={256}>
+                  <BarChart data={platformData}>
+                    <XAxis dataKey="name" stroke="#888888" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#888888" fontSize={9} tickLine={false} axisLine={false} />
+                    <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={tooltipStyle} />
+                    <Bar dataKey="amount" fill="#10B981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {showFinancial && expenseData.length > 0 && (
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-4 md:p-5 shadow-sm">
+                <h3 className="text-[10px] sm:text-xs font-bold uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-3 md:mb-4">
+                  Expenses by Category (This Month)
+                </h3>
+                <ResponsiveContainer width="100%" height={256}>
+                  <PieChart>
+                    <Pie data={expenseData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value">
+                      {expenseData.map((entry, index) => (
+                        <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={tooltipStyle} />
+                    <Legend verticalAlign="bottom" height={30} iconType="circle" wrapperStyle={{ fontSize: '9px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         </>
       )}

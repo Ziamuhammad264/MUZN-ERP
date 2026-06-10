@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FormField } from '../../components/ui/FormField';
 import { DatePicker } from '../../components/ui/date-picker';
 import { employeesApi } from '../../api/services';
@@ -213,8 +214,8 @@ export const EmployeeModal = ({ isOpen, onClose, employee = null, onSuccess }) =
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-t-2xl sm:rounded-xl max-w-4xl w-full shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[calc(100vh-16px)] sm:max-h-[90vh] my-0 sm:my-8">
         {/* Header */}
         <div className="flex justify-between items-center px-3 sm:px-6 py-3 sm:py-4 border-b border-slate-150 dark:border-slate-700 flex-shrink-0">
@@ -614,6 +615,7 @@ export const EmployeeModal = ({ isOpen, onClose, employee = null, onSuccess }) =
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

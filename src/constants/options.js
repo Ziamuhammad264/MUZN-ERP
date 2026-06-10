@@ -55,6 +55,16 @@ export const ASSIGNMENT_STATUS = [
   { value: 'cancelled', label: 'Cancelled' }
 ];
 
+// Bike handover/return condition — backend enum. Adjust values to match the API's
+// allowed set if these are rejected.
+export const BIKE_CONDITION = [
+  { value: 'excellent', label: 'Excellent' },
+  { value: 'good', label: 'Good' },
+  { value: 'fair', label: 'Fair' },
+  { value: 'poor', label: 'Poor' },
+  { value: 'damaged', label: 'Damaged' }
+];
+
 export const LOAN_STATUS = [
   { value: 'active', label: 'Active' },
   { value: 'paid', label: 'Paid' },

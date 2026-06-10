@@ -3,6 +3,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { FormField } from '../../components/ui/FormField';
 import { DatePicker } from '../../components/ui/date-picker';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ModalPortal } from '../../components/ui/ModalPortal';
 import { DataTable } from '../../components/ui/DataTable';
 import { TabFilter } from '../../components/ui/TabFilter';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -196,13 +197,46 @@ export const Fines = () => {
     }
   };
 
+  // Resolve a rider's name from the fine row, falling back to the employee list
+  // (the row often only carries employee_id).
+  const employeeById = useMemo(() => {
+    const map = {};
+    employees.forEach((e) => {
+      map[e.id] = e;
+    });
+    return map;
+  }, [employees]);
+
+  const employeeOf = (row) => {
+    const emp = row.employee || employeeById[row.employee_id] || {};
+    return {
+      name: row.employee_name || emp.name || '—',
+      ref: emp.employee_id || (row.employee_id ? `#${row.employee_id}` : '')
+    };
+  };
+
   // ----- Table columns -----------------------------------------------------
   const columns = [
     {
       header: 'Rider Name',
       accessor: 'employee_name',
       sortable: true,
-      render: (val) => <span className="font-semibold text-slate-800 dark:text-slate-100">{val || '—'}</span>
+      render: (val, row) => {
+        const { name, ref } = employeeOf(row);
+        return (
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-full flex items-center justify-center bg-brand-light/10 dark:bg-brand-dark/10 text-brand-light dark:text-brand-dark text-xs font-bold flex-shrink-0">
+              {name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <span className="font-semibold text-slate-800 dark:text-slate-100 block truncate">{name}</span>
+              {ref && (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-semibold">{ref}</span>
+              )}
+            </div>
+          </div>
+        );
+      }
     },
     {
       header: 'Type',
@@ -240,29 +274,31 @@ export const Fines = () => {
       accessor: 'id',
       render: (val, row) => {
         const locked = row.status === 'deducted';
+        const actionBtn =
+          'flex items-center justify-center h-7 w-7 rounded-lg border transition-colors disabled:opacity-30 disabled:cursor-not-allowed';
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => openEdit(row)}
               disabled={locked}
               title={locked ? 'Cannot edit a deducted fine' : 'Edit fine'}
-              className="text-slate-500 hover:text-brand-light disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${actionBtn} border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-brand-light/10 hover:text-brand-light hover:border-brand-light/30`}
             >
-              <Pencil size={15} />
+              <Pencil size={14} />
             </button>
             <button
               onClick={() => handleWaive(row)}
               disabled={locked || row.status === 'waived'}
               title={locked ? 'Cannot waive a deducted fine' : 'Waive fine'}
-              className="text-slate-500 hover:text-amber-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${actionBtn} border-amber-200 dark:border-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30`}
             >
-              <ShieldOff size={15} />
+              <ShieldOff size={14} />
             </button>
             <label
               title="Upload receipt"
-              className="text-slate-500 hover:text-blue-600 cursor-pointer transition-colors"
+              className={`${actionBtn} border-blue-200 dark:border-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 cursor-pointer`}
             >
-              <Upload size={15} />
+              <Upload size={14} />
               <input
                 type="file"
                 accept=".pdf,.png,.jpg,.jpeg"
@@ -277,9 +313,9 @@ export const Fines = () => {
               onClick={() => handleDelete(row)}
               disabled={locked}
               title={locked ? 'Cannot delete a deducted fine' : 'Delete fine'}
-              className="text-slate-500 hover:text-rose-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${actionBtn} border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30`}
             >
-              <Trash2 size={15} />
+              <Trash2 size={14} />
             </button>
           </div>
         );
@@ -362,7 +398,8 @@ export const Fines = () => {
 
       {/* Log / Edit Fine Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden animate-fade-in text-left my-8">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-700">
               <h3 className="text-base font-bold text-slate-850 dark:text-slate-100 flex items-center gap-2">
@@ -470,6 +507,7 @@ export const Fines = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

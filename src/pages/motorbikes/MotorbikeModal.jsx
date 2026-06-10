@@ -7,6 +7,7 @@ import { useSettingsOptions } from '../../hooks/useSettings';
 import { toast } from '../../utils/notify';
 import { apiMessage } from '../../api/axios';
 import { v, validateForm, cleanPayload, mapApiErrors } from '../../utils/validation';
+import { ModalPortal } from '../../components/ui/ModalPortal';
 import { X } from 'lucide-react';
 
 // Static UAE emirates list (registration emirate).
@@ -117,7 +118,8 @@ export const MotorbikeModal = ({ isOpen, onClose, bike = null, onSaved }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <ModalPortal>
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-xl max-w-4xl w-full shadow-2xl overflow-hidden animate-fade-in my-8 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-150 dark:border-slate-700 flex-shrink-0">
@@ -340,5 +342,6 @@ export const MotorbikeModal = ({ isOpen, onClose, bike = null, onSaved }) => {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
