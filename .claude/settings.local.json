@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx eslint *)",
+      "Bash(npx vite *)",
+      "Bash(echo \"===exit:$?===\")",
+      "Bash(npm run *)",
+      "Bash(echo \"===build exit:$?===\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const r=JSON.parse\\(d\\);for\\(const f of r\\){for\\(const m of f.messages\\){if\\(m.ruleId==='no-unused-vars'&&/React/.test\\(m.message\\)\\)continue;if\\(m.ruleId==='react-hooks/set-state-in-effect'\\)continue;console.log\\(f.filePath.split\\(/[\\\\\\\\\\\\/]/\\).pop\\(\\),m.line,m.ruleId,m.message.split\\('\\\\n'\\)[0]\\);}}console.log\\('---done---'\\)}\\)\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const r=JSON.parse\\(d\\);let n=0;for\\(const f of r\\)for\\(const m of f.messages\\){if\\(m.ruleId==='no-unused-vars'\\){console.log\\(f.filePath.split\\(/[\\\\\\\\\\\\/]/\\).pop\\(\\),m.line,m.message.split\\('\\\\n'\\)[0]\\);n++;}}if\\(!n\\)console.log\\('no unused-vars beyond React'\\)}\\)\")",
+      "Bash(rm -rf src/pages/documents src/store)",
+      "Bash(grep -l \"erpStore\\\\|useErpStore\" src/utils/*.js)",
+      "Bash(grep -E \"^/|^[a-z].*\\\\.jsx?$|src.*\\\\.jsx?\")"
+    ]
+  }
+}
